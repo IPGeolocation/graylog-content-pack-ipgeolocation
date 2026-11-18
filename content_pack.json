@@ -1,0 +1,530 @@
+{
+  "v": "1",
+  "id": "6e2b3c7a-4f1d-4c55-9d3e-0b8f2a1c9e01",
+  "rev": 1,
+  "name": "IPGeolocation.io IP enrichment",
+  "summary": "Security and location enrichment of source_ip from the IPGeolocation.io API.",
+  "description": "Enriches the `source_ip` field of your messages with IPGeolocation.io data, using two\nindependent pipelines. Connect either or both to the streams you want enriched.\n\n- **IPGeolocation.io Security** (paid plans): threat score, VPN, proxy, residential proxy (with last-seen\n  dates and 7/30-day activity), Tor, relay, bot, spam, known attacker, cloud provider and corporate gateway\n  signals, as `source_ip_ipgeolocation_*` fields.\n- **IPGeolocation.io Location**: country, region, city, coordinates, time zone and ASN in Graylog's standard\n  `source_geo_*` and `source_as_*` fields, the same fields Graylog's GeoIP processor writes.\n\nPrivate and reserved addresses are skipped. Each IP is looked up once per 24 hours (up to 100,000 IPs per\nnode). The API key is sent in the `X-IPGeolocation-API-Key` header and is entered when you install the pack.",
+  "vendor": "IPGeolocation.io",
+  "url": "https://ipgeolocation.io",
+  "parameters": [
+    {
+      "name": "IPGEOLOCATION_API_KEY",
+      "title": "IPGeolocation.io API key",
+      "description": "Your API key from https://app.ipgeolocation.io/ (sent in the X-IPGeolocation-API-Key header).",
+      "type": "string"
+    }
+  ],
+  "entities": [
+    {
+      "id": "66bc0906-83e0-4fd6-9385-711d823a8680",
+      "type": {
+        "name": "lookup_cache",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-location-cache"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Location cache"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "24 h per IP, up to 100,000 IPs per Graylog node."
+        },
+        "configuration": {
+          "type": {
+            "@type": "string",
+            "@value": "guava_cache"
+          },
+          "max_size": {
+            "@type": "integer",
+            "@value": 100000
+          },
+          "expire_after_access": {
+            "@type": "long",
+            "@value": 0
+          },
+          "expire_after_write": {
+            "@type": "long",
+            "@value": 24
+          },
+          "expire_after_write_unit": {
+            "@type": "string",
+            "@value": "HOURS"
+          },
+          "ignore_null": {
+            "@type": "boolean",
+            "@value": false
+          }
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "d75558e3-2d17-46a9-8669-5aa4b13d4281",
+      "type": {
+        "name": "lookup_table",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-location"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Location"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IP location from IPGeolocation.io (/v3/ipgeo): country, region, city, coordinates, time zone and ASN."
+        },
+        "cache_name": {
+          "@type": "string",
+          "@value": "66bc0906-83e0-4fd6-9385-711d823a8680"
+        },
+        "data_adapter_name": {
+          "@type": "string",
+          "@value": "043151af-af1d-4666-96da-e887c9fd3ae4"
+        },
+        "default_single_value": {
+          "@type": "string",
+          "@value": ""
+        },
+        "default_single_value_type": {
+          "@type": "string",
+          "@value": "NULL"
+        },
+        "default_multi_value": {
+          "@type": "string",
+          "@value": ""
+        },
+        "default_multi_value_type": {
+          "@type": "string",
+          "@value": "NULL"
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "e137be5d-a54d-49c2-a4e1-488fe472a42c",
+      "type": {
+        "name": "pipeline_rule",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io location: source_ip"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IPGeolocation.io content pack"
+        },
+        "source": {
+          "@type": "string",
+          "@value": "rule \"IPGeolocation.io location: source_ip\"\nwhen\n  has_field(\"source_ip\") &&\n  is_ip(value: to_string($message.source_ip), attemptConversion: true) &&\n  ! cidr_match(\"0.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"10.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100.64.0.0/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"127.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"169.254.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"172.16.0.0/12\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.2.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.88.99.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.168.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.18.0.0/15\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.51.100.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"203.0.113.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"224.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"233.252.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"240.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"255.255.255.255/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::1/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100::/64\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"2001:db8::/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fc00::/7\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fe80::/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"ff00::/8\", to_ip($message.source_ip)) &&\n  lookup_has_value(\"ipgeolocation-location\", to_string($message.source_ip))\nthen\n  let r = lookup(\"ipgeolocation-location\", to_string($message.source_ip));\n  set_field(\"source_geo_coordinates\", concat(concat(to_string(r.location.latitude), \",\"), to_string(r.location.longitude)));\n  set_field(\"source_geo_country_iso\", r.location.country_code2);\n  set_field(\"source_geo_country\", r.location.country_name);\n  set_field(\"source_geo_region\", r.location.state_prov);\n  set_field(\"source_geo_city\", r.location.city);\n  set_field(\"source_geo_timezone\", r.time_zone.name);\n  set_field(\"source_as_number\", replace(to_string(r.asn.as_number), \"AS\", \"\"));\n  set_field(\"source_as_organization\", r.asn.organization);\nend"
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "9b2b8456-a193-476b-9a6f-43d6ed8d695c",
+      "type": {
+        "name": "pipeline_rule",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io security: source_ip"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IPGeolocation.io content pack"
+        },
+        "source": {
+          "@type": "string",
+          "@value": "rule \"IPGeolocation.io security: source_ip\"\nwhen\n  has_field(\"source_ip\") &&\n  is_ip(value: to_string($message.source_ip), attemptConversion: true) &&\n  ! cidr_match(\"0.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"10.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100.64.0.0/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"127.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"169.254.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"172.16.0.0/12\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.2.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.88.99.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.168.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.18.0.0/15\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.51.100.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"203.0.113.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"224.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"233.252.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"240.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"255.255.255.255/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::1/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100::/64\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"2001:db8::/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fc00::/7\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fe80::/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"ff00::/8\", to_ip($message.source_ip)) &&\n  lookup_has_value(\"ipgeolocation-security\", to_string($message.source_ip))\nthen\n  set_fields(\n    fields: lookup(\"ipgeolocation-security\", to_string($message.source_ip)),\n    prefix: \"source_ip_ipgeolocation_\"\n  );\nend"
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "16f78957-0fc9-4db2-8be5-7246817c7a49",
+      "type": {
+        "name": "lookup_adapter",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-security"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Security"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IP security from IPGeolocation.io (/v3/security): threat score, VPN, proxy, residential proxy, Tor, relay, bot, spam, known attacker, cloud provider and corporate gateway. Paid plans."
+        },
+        "configuration": {
+          "type": {
+            "@type": "string",
+            "@value": "httpjsonpath"
+          },
+          "url": {
+            "@type": "string",
+            "@value": "https://api.ipgeolocation.io/v3/security?ip=${key}"
+          },
+          "single_value_jsonpath": {
+            "@type": "string",
+            "@value": "$.security.threat_score"
+          },
+          "multi_value_jsonpath": {
+            "@type": "string",
+            "@value": "$.security"
+          },
+          "user_agent": {
+            "@type": "string",
+            "@value": "Graylog IPGeolocation.io content pack"
+          },
+          "headers": {
+            "X-IPGeolocation-API-Key": {
+              "@type": "parameter",
+              "@value": "IPGEOLOCATION_API_KEY"
+            }
+          }
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "56c7320a-15c2-4e0d-b7fd-6219448becfa",
+      "type": {
+        "name": "pipeline",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Security"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IPGeolocation.io content pack"
+        },
+        "source": {
+          "@type": "string",
+          "@value": "pipeline \"IPGeolocation.io Security\"\nstage 0 match either\nrule \"IPGeolocation.io security: source_ip\";\nend"
+        },
+        "connected_streams": []
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "043151af-af1d-4666-96da-e887c9fd3ae4",
+      "type": {
+        "name": "lookup_adapter",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-location"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Location"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IP location from IPGeolocation.io (/v3/ipgeo): country, region, city, coordinates, time zone and ASN."
+        },
+        "configuration": {
+          "type": {
+            "@type": "string",
+            "@value": "httpjsonpath"
+          },
+          "url": {
+            "@type": "string",
+            "@value": "https://api.ipgeolocation.io/v3/ipgeo?ip=${key}"
+          },
+          "single_value_jsonpath": {
+            "@type": "string",
+            "@value": "$.location.country_code2"
+          },
+          "multi_value_jsonpath": {
+            "@type": "string",
+            "@value": "$"
+          },
+          "user_agent": {
+            "@type": "string",
+            "@value": "Graylog IPGeolocation.io content pack"
+          },
+          "headers": {
+            "X-IPGeolocation-API-Key": {
+              "@type": "parameter",
+              "@value": "IPGEOLOCATION_API_KEY"
+            }
+          }
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "26fa0295-027d-4b5d-ac60-735e931454dc",
+      "type": {
+        "name": "lookup_table",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-security"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Security"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IP security from IPGeolocation.io (/v3/security): threat score, VPN, proxy, residential proxy, Tor, relay, bot, spam, known attacker, cloud provider and corporate gateway. Paid plans."
+        },
+        "cache_name": {
+          "@type": "string",
+          "@value": "b9ed830a-e61c-471d-aba0-b0d9febb3969"
+        },
+        "data_adapter_name": {
+          "@type": "string",
+          "@value": "16f78957-0fc9-4db2-8be5-7246817c7a49"
+        },
+        "default_single_value": {
+          "@type": "string",
+          "@value": ""
+        },
+        "default_single_value_type": {
+          "@type": "string",
+          "@value": "NULL"
+        },
+        "default_multi_value": {
+          "@type": "string",
+          "@value": ""
+        },
+        "default_multi_value_type": {
+          "@type": "string",
+          "@value": "NULL"
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "b9ed830a-e61c-471d-aba0-b0d9febb3969",
+      "type": {
+        "name": "lookup_cache",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "_scope": {
+          "@type": "string",
+          "@value": "DEFAULT"
+        },
+        "name": {
+          "@type": "string",
+          "@value": "ipgeolocation-security-cache"
+        },
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Security cache"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "24 h per IP, up to 100,000 IPs per Graylog node."
+        },
+        "configuration": {
+          "type": {
+            "@type": "string",
+            "@value": "guava_cache"
+          },
+          "max_size": {
+            "@type": "integer",
+            "@value": 100000
+          },
+          "expire_after_access": {
+            "@type": "long",
+            "@value": 0
+          },
+          "expire_after_write": {
+            "@type": "long",
+            "@value": 24
+          },
+          "expire_after_write_unit": {
+            "@type": "string",
+            "@value": "HOURS"
+          },
+          "ignore_null": {
+            "@type": "boolean",
+            "@value": false
+          }
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "c5186417-4744-43c0-b015-e65e64518675",
+      "type": {
+        "name": "pipeline_rule",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io location name: source_ip"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IPGeolocation.io content pack"
+        },
+        "source": {
+          "@type": "string",
+          "@value": "rule \"IPGeolocation.io location name: source_ip\"\nwhen\n  has_field(\"source_ip\") &&\n  is_ip(value: to_string($message.source_ip), attemptConversion: true) &&\n  ! cidr_match(\"0.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"10.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100.64.0.0/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"127.0.0.0/8\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"169.254.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"172.16.0.0/12\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.0.2.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.88.99.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"192.168.0.0/16\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.18.0.0/15\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"198.51.100.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"203.0.113.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"224.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"233.252.0.0/24\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"240.0.0.0/4\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"255.255.255.255/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"::1/128\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"100::/64\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"2001:db8::/32\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fc00::/7\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"fe80::/10\", to_ip($message.source_ip)) &&\n  ! cidr_match(\"ff00::/8\", to_ip($message.source_ip)) &&\n  lookup_has_value(\"ipgeolocation-location\", to_string($message.source_ip)) &&\n  to_string(lookup(\"ipgeolocation-location\", to_string($message.source_ip)).location.city) != \"\"\nthen\n  let r = lookup(\"ipgeolocation-location\", to_string($message.source_ip));\n  set_field(\"source_geo_name\", concat(concat(to_string(r.location.city), \", \"), to_string(r.location.country_code2)));\nend"
+        }
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "e01d303f-ec8b-435c-8df7-e6623c5e4234",
+      "type": {
+        "name": "pipeline",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "title": {
+          "@type": "string",
+          "@value": "IPGeolocation.io Location"
+        },
+        "description": {
+          "@type": "string",
+          "@value": "IPGeolocation.io content pack"
+        },
+        "source": {
+          "@type": "string",
+          "@value": "pipeline \"IPGeolocation.io Location\"\nstage 0 match either\nrule \"IPGeolocation.io location: source_ip\";\nrule \"IPGeolocation.io location name: source_ip\";\nend"
+        },
+        "connected_streams": []
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=7.2.2+94adc86"
+        }
+      ]
+    },
+    {
+      "id": "d353a06d-68e8-428a-91bf-5d0a4c744fc1",
+      "type": {
+        "name": "url_allowlist_entry",
+        "version": "1"
+      },
+      "v": "1",
+      "data": {
+        "id": "dc2d7162-9460-4ddb-910c-be0e66e0946e",
+        "type": "regex",
+        "title": "IPGeolocation.io API",
+        "value": "^https://api\\.ipgeolocation\\.io/v3/.*$"
+      },
+      "constraints": [
+        {
+          "type": "server-version",
+          "version": ">=3.1.3"
+        }
+      ]
+    }
+  ]
+}
